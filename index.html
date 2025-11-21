@@ -2611,7 +2611,7 @@
             }
             const bg = document.getElementById('bg-wav');
             if (bg) {
-                bg,volume = 0.8;
+                bg.volume = 0.8;
                 bg.play().then(() => bg.pause()).catch(()=>{})
             }
             document.body.removeEventListener('click', unlockAudio);
