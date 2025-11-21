@@ -119,8 +119,8 @@
 
 
         /*/////////////////////
-//       MENUS       //
-/////////////////////*/
+        //       MENUS       //
+        /////////////////////*/
 
         .menus::before {
             content: '';
@@ -145,9 +145,7 @@
         .menus.interactive-mode::before {
             opacity: 0.02;
         }
-
-
-
+        
         /* Menu containers */
         .menu {
             pointer-events: none;
@@ -327,6 +325,7 @@
     <audio id="slice-audio" src="crashing.mp3" preload="auto"></audio>
     <audio id="crashing-audio" src="crashing.mp3" preload="auto"></audio>
     <audio id="mmm-audio" src="mmm.mp3" preload="auto"></audio>
+    <audio id="bg-wav" src="bg.wav" preload="auto" loop></audio>
 
     <script>
         // globalConfig.js
@@ -1719,12 +1718,26 @@
             setGameMode(GAME_MODE_RANKED);
             setActiveMenu(null);
             resetGame();
+            const bg = document.getElementById('bg-wav');
+            if (bg) {
+                bg.volume = 0.8;
+                bg.currentTime = 0;
+                bg.loop = true;
+                bg.play().catch(()=>{});
+            }
         });
 
         handleClick($('.play-casual-btn'), () => {
             setGameMode(GAME_MODE_CASUAL);
             setActiveMenu(null);
             resetGame();
+            const bg = document.getElementById('bg-wav');
+            if (bg) {
+                bg.volume = 0.8;
+                bg.currentTime = 0;
+                bg.loop = true;
+                bg.play().catch(()=>{});
+            }
         });
 
         // Pause Menu
@@ -1853,6 +1866,10 @@
                 // Name input will be shown in renderMenus
             } else if (isNewHighScore()) {
                 setHighScore(state.game.score);
+            }
+            const bg = document.getElementById('bg-wav');
+            if (bg) {
+                bg.pause();
             }
             setActiveMenu(MENU_SCORE);
         }
@@ -2396,8 +2413,8 @@
 
 
         // canvas.js
-        // ============================================================================
-        // ============================================================================
+        // ========================================================================
+        // ========================================================================
 
         function setupCanvases() {
             const ctx = canvas.getContext('2d');
@@ -2481,8 +2498,8 @@
 
 
         // interaction.js
-        // ============================================================================
-        // ============================================================================
+        // ==========================================================================
+        // ==========================================================================
 
         // Interaction
         // -----------------------------
@@ -2574,8 +2591,8 @@
 
 
         // index.js
-        // ============================================================================
-        // ============================================================================
+        // ==========================================================================
+        // ==========================================================================
 
         setupCanvases();
 
@@ -2591,6 +2608,11 @@
             if (mmmAudio) {
                 mmmAudio.volume = 1;
                 mmmAudio.play().then(() => mmmAudio.pause()).catch(() => {});
+            }
+            const bg = document.getElementById('bg-wav');
+            if (bg) {
+                bg,volume = 0.8;
+                bg.play().then(() => bg.pause()).catch(()=>{})
             }
             document.body.removeEventListener('click', unlockAudio);
         }
