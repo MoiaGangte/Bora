@@ -501,7 +501,7 @@
 
         let _lastHighscore = getHighScore();
         const setHighScore = score => {
-            _lastHighscore = getHighScore();
+            _lastHighscore = score;
             localStorage.setItem(highScoreKey, String(score));
         };
 
@@ -716,11 +716,6 @@
             vector.y *= scale;
             vector.z *= scale;
         };
-
-
-
-
-
 
 
 
@@ -1853,10 +1848,26 @@
 
         function pauseGame() {
             isInGame() && setActiveMenu(MENU_PAUSE);
+            if (isInGame()) {
+                if (bgAudio && !bgAudio.paused) {
+                    bgWasPlaying = true;
+                    bgAudio.pause();
+            } else {
+                bgWasPlaying = false;
+            }
+            setActiveMenu(MENU_PAUSE);
         }
+    }
 
         function resumeGame() {
             isPaused() && setActiveMenu(null);
+            if (isPaused()) {
+                setActiveMenu(null);
+                if (bgAudio && bgWasPlaying) {
+                    bgAudio.play().catch(()=>{});
+                }
+                bgWasPlaying = false;
+            }
         }
 
         function endGame() {
@@ -1912,9 +1923,13 @@
         const crashingAudio = document.getElementById('crashing-audio');
         const mmmAudio = document.getElementById('mmm-audio');
 
+        const bgAudio = document.getElementById('bg-wav');
+        let bgWasPlaying = false;
+
         function tick(width, height, simTime, simSpeed, lag) {
             PERF_START('frame');
             PERF_START('tick');
+            
 
             state.game.time += simTime;
 
