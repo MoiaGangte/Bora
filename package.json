@@ -1,0 +1,13 @@
+{
+  "name": "bora-game",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "dotenv": "^18.0.8",
+    "express": "^5.1.0",
+    "mongodb": "^6.17.0"
+  }
+}

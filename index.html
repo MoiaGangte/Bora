@@ -316,6 +316,7 @@
             <div class="name-input-container" style="display:none; margin: 1em 0;">
                 <input type="text" class="player-name-input" placeholder="Enter your name" maxlength="16" style="font-size:1.2em; padding:0.3em; width: 180px;">
                 <button type="button" class="submit-name-btn" style="font-size:1.1em; margin-left:0.5em;">Submit</button>
+                <div class="score-submit-status" role="status" aria-live="polite" style="font-size:0.8em; margin-top:0.5em;"></div>
             </div>
             <button type="button" class="play-again-btn">PLAY AGAIN</button>
             <button type="button" class="menu-btn--score">MAIN MENU</button>
@@ -474,29 +475,9 @@
         ///////////////////
 
         const highScoreKey = '__moia__highScore';
-        const topScoresKey = '__moia__topScores';
         const getHighScore = () => {
             const raw = localStorage.getItem(highScoreKey);
             return raw ? parseInt(raw, 10) : 0;
-        };
-        // Get top 3 scores (with names) from localStorage
-        const getTopScores = () => {
-            const raw = localStorage.getItem(topScoresKey);
-            if (!raw) return [];
-            try {
-                return JSON.parse(raw);
-            } catch {
-                return [];
-            }
-        };
-        // Save top 3 scores (with names) to localStorage
-        const setTopScores = (entry) => {
-            let scores = getTopScores();
-            scores.push(entry);
-            scores = scores.filter(s => s && typeof s.score === 'number' && !isNaN(s.score) && typeof s.name === 'string');
-            scores.sort((a, b) => b.score - a.score);
-            scores = scores.slice(0, 3);
-            localStorage.setItem(topScoresKey, JSON.stringify(scores));
         };
 
         let _lastHighscore = getHighScore();
@@ -1635,7 +1616,35 @@
         const nameInputContainerNode = document.querySelector('.name-input-container');
         const playerNameInputNode = document.querySelector('.player-name-input');
         const submitNameBtnNode = document.querySelector('.submit-name-btn');
+        const scoreSubmitStatusNode = document.querySelector('.score-submit-status');
         let pendingHighScore = null;
+        let topScores = [];
+        let topScoresLoading = true;
+        let topScoresLoadError = false;
+
+        async function loadTopScores() {
+            topScoresLoading = true;
+            topScoresLoadError = false;
+            if (state.menus.active === MENU_MAIN) renderMenus();
+
+            try {
+                const response = await fetch('/api/highscores');
+                if (!response.ok) {
+                    throw new Error(`High score request failed (${response.status})`);
+                }
+                const result = await response.json();
+                if (!result || !Array.isArray(result.highScores)) {
+                    throw new Error('The high score response is invalid');
+                }
+                topScores = result.highScores;
+            } catch (error) {
+                console.error('Unable to load high scores:', error);
+                topScoresLoadError = true;
+            } finally {
+                topScoresLoading = false;
+                if (state.menus.active === MENU_MAIN) renderMenus();
+            }
+        }
 
 
 
@@ -1655,14 +1664,24 @@
             switch (state.menus.active) {
                 case MENU_MAIN:
                     showMenu(menuMainNode);
-                    // Render top 3 scores
                     if (topScoresContainerNode) {
-                        const topScores = getTopScores();
-                        if (topScores.length > 0) {
-                            topScoresContainerNode.innerHTML = '<div style="margin-top:1em;font-size:1.1em;">Top Scores:</div>' +
-                                topScores.map((entry, i) => `<div style="font-size:1em;">${i + 1}. ${entry.name ? entry.name : 'Anonymous'} - ${formatNumber(entry.score)}</div>`).join('');
-                        } else {
-                            topScoresContainerNode.innerHTML = '';
+                        topScoresContainerNode.replaceChildren();
+                        if (topScoresLoading) {
+                            topScoresContainerNode.textContent = 'Loading top scores...';
+                        } else if (topScoresLoadError) {
+                            topScoresContainerNode.textContent = 'Top scores are currently unavailable.';
+                        } else if (topScores.length > 0) {
+                            const heading = document.createElement('div');
+                            heading.style.marginTop = '1em';
+                            heading.style.fontSize = '1.1em';
+                            heading.textContent = 'Top Scores:';
+                            topScoresContainerNode.appendChild(heading);
+                            topScores.forEach((entry, i) => {
+                                const scoreRow = document.createElement('div');
+                                scoreRow.style.fontSize = '1em';
+                                scoreRow.textContent = `${i + 1}. ${entry.name || 'Anonymous'} - ${formatNumber(entry.score)}`;
+                                topScoresContainerNode.appendChild(scoreRow);
+                            });
                         }
                     }
                     break;
@@ -1679,6 +1698,7 @@
                             playerNameInputNode.value = '';
                             playerNameInputNode.focus();
                             pendingHighScore = state.game.score;
+                            scoreSubmitStatusNode.textContent = '';
                             playerNameInputNode.disabled = false;
                             submitNameBtnNode.disabled = false;
                         }
@@ -1701,6 +1721,7 @@
         }
 
         renderMenus();
+        loadTopScores();
 
 
 
@@ -2634,18 +2655,35 @@
 
         // Handle name submission for high score (PLAY GAME mode only)
         if (submitNameBtnNode) {
-            submitNameBtnNode.addEventListener('click', () => {
-                if (pendingHighScore && playerNameInputNode.value.trim() && !submitNameBtnNode.disabled) {
-                    setTopScores({ name: playerNameInputNode.value.trim(), score: pendingHighScore });
-                    setHighScore(pendingHighScore); // update high score value
-                    // Disable input and button to prevent further submissions
+            submitNameBtnNode.addEventListener('click', async () => {
+                const name = playerNameInputNode.value.trim();
+                if (pendingHighScore === null || !name || submitNameBtnNode.disabled) return;
+
+                submitNameBtnNode.disabled = true;
+                scoreSubmitStatusNode.textContent = 'Saving score...';
+                try {
+                    const response = await fetch('/api/highscores', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ name, score: pendingHighScore })
+                    });
+                    if (!response.ok) {
+                        const result = await response.json().catch(() => null);
+                        throw new Error(result?.error || `Score submission failed (${response.status})`);
+                    }
+
+                    setHighScore(pendingHighScore);
                     playerNameInputNode.disabled = true;
-                    submitNameBtnNode.disabled = true;
                     nameInputContainerNode.style.display = 'none';
                     pendingHighScore = null;
                     playerNameInputNode.disabled = false;
                     submitNameBtnNode.disabled = false;
-                    setActiveMenu(MENU_MAIN); // Redirect to homepage
+                    setActiveMenu(MENU_MAIN);
+                    loadTopScores();
+                } catch (error) {
+                    console.error('Unable to save high score:', error);
+                    scoreSubmitStatusNode.textContent = 'Unable to save your score. Please try again.';
+                    submitNameBtnNode.disabled = false;
                 }
             });
             playerNameInputNode.addEventListener('keydown', (e) => {
