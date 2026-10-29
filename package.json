@@ -1,14 +1,20 @@
 {
-  "name": "bora-game",
-  "version": "1.0.0",
+  "name": "bora",
   "private": true,
-  "main": "server.js",
+  "version": "0.0.0",
+  "type": "module",
   "scripts": {
-    "start": "node server.js"
+    "dev": "concurrently -k -n api,web \"node server.js\" \"vite --host localhost --port 5173 --strictPort\"",
+    "build": "vite build",
+    "preview": "vite preview --host localhost --port 5173 --strictPort"
   },
   "dependencies": {
-    "dotenv": "^18.0.8",
+    "dotenv": "^16.4.7",
     "express": "^5.1.0",
     "mongodb": "^6.17.0"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "vite": "^8.3.5"
   }
 }

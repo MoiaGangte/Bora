@@ -2,26 +2,25 @@
 
 ## Run locally
 
-Install dependencies:
-
-```sh
-npm install
-```
-
-Create a `.env` file in the project root (you can copy `.env.example`) and set
-`MONGODB_URI` to your MongoDB connection string. The example connects to a
-MongoDB server running locally. For MongoDB Atlas, use the connection string
-from your Atlas cluster instead:
+Make sure `.env` contains `MONGODB_URI` and, optionally, `MONGODB_DB` (defaults
+to `bora`). Then run:
 
 ```powershell
-Copy-Item .env.example .env
-# Edit .env and set MONGODB_URI to your MongoDB connection string.
-npm start
+npm install
+npm run dev
 ```
 
-Open <http://localhost:3000>. The server stores submitted names and scores in
-the `highscores` collection in the `bora` database. Set `MONGODB_DB` to use a
-different database name and `PORT` to use a different port. The server loads
-configuration from `.env`; environment variables already set in the shell take
-precedence. Keep `.env` private and never put the MongoDB connection string in
-`index.html`.
+Open <http://localhost:5173>. This starts the Vite game and the local MongoDB
+API. Vite forwards `/api/highscores` to the API server on port 9000. The game
+stores submitted ranked scores in the `highscores` collection.
+
+## Deploy to Vercel
+
+Deploy this repository with the Vite framework preset, `npm run build` as the
+build command, and `dist` as the output directory. In the Vercel project's
+Environment Variables settings, add `MONGODB_URI` and optionally `MONGODB_DB`.
+Do not add the MongoDB URI with a `VITE_` prefix; it must stay server-side.
+
+The serverless API is available at `/api/highscores`. Allow the Vercel
+deployment to connect to your MongoDB Atlas cluster in its Network Access
+settings.

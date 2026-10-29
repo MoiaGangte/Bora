@@ -119,8 +119,8 @@
 
 
         /*/////////////////////
-        //       MENUS       //
-        /////////////////////*/
+//       MENUS       //
+/////////////////////*/
 
         .menus::before {
             content: '';
@@ -145,7 +145,9 @@
         .menus.interactive-mode::before {
             opacity: 0.02;
         }
-        
+
+
+
         /* Menu containers */
         .menu {
             pointer-events: none;
@@ -314,18 +316,19 @@
             <div class="final-score-lbl"></div>
             <div class="high-score-lbl"></div>
             <div class="name-input-container" style="display:none; margin: 1em 0;">
-                <input type="text" class="player-name-input" placeholder="Enter your name" maxlength="16" style="font-size:1.2em; padding:0.3em; width: 180px;">
-                <button type="button" class="submit-name-btn" style="font-size:1.1em; margin-left:0.5em;">Submit</button>
-                <div class="score-submit-status" role="status" aria-live="polite" style="font-size:0.8em; margin-top:0.5em;"></div>
+                <input type="text" class="player-name-input" placeholder="Enter your name" maxlength="16"
+                    style="font-size:1.2em; padding:0.3em; width: 180px;">
+                <button type="button" class="submit-name-btn"
+                    style="font-size:1.1em; margin-left:0.5em;">Submit</button>
             </div>
             <button type="button" class="play-again-btn">PLAY AGAIN</button>
             <button type="button" class="menu-btn--score">MAIN MENU</button>
         </div>
     </div>
 
-    <audio id="slice-audio" src="crashing.mp3" preload="auto"></audio>
-    <audio id="crashing-audio" src="crashing.mp3" preload="auto"></audio>
-    <audio id="mmm-audio" src="mmm.mp3" preload="auto"></audio>
+    <audio id="slice-audio" src="/sound/crashing.mp3" preload="auto"></audio>
+    <audio id="crashing-audio" src="/sound/crashing.mp3" preload="auto"></audio>
+    <audio id="mmm-audio" src="/sound/mmm.mp3" preload="auto"></audio>
 
     <script>
         // globalConfig.js
@@ -473,19 +476,7 @@
         // Local Storage //
         ///////////////////
 
-        const highScoreKey = '__moia__highScore';
-        const getHighScore = () => {
-            const raw = localStorage.getItem(highScoreKey);
-            return raw ? parseInt(raw, 10) : 0;
-        };
-
-        let _lastHighscore = getHighScore();
-        const setHighScore = score => {
-            _lastHighscore = score;
-            localStorage.setItem(highScoreKey, String(score));
-        };
-
-        const isNewHighScore = () => state.game.score > _lastHighscore;
+        // Only keep the Firebase-based highscore logic and its single declaration of _lastHighscore, setHighScore, and isNewHighScore.
 
 
 
@@ -696,6 +687,11 @@
             vector.y *= scale;
             vector.z *= scale;
         };
+
+
+
+
+
 
 
 
@@ -1615,35 +1611,7 @@
         const nameInputContainerNode = document.querySelector('.name-input-container');
         const playerNameInputNode = document.querySelector('.player-name-input');
         const submitNameBtnNode = document.querySelector('.submit-name-btn');
-        const scoreSubmitStatusNode = document.querySelector('.score-submit-status');
         let pendingHighScore = null;
-        let topScores = [];
-        let topScoresLoading = true;
-        let topScoresLoadError = false;
-
-        async function loadTopScores() {
-            topScoresLoading = true;
-            topScoresLoadError = false;
-            if (state.menus.active === MENU_MAIN) renderMenus();
-
-            try {
-                const response = await fetch('/api/highscores');
-                if (!response.ok) {
-                    throw new Error(`High score request failed (${response.status})`);
-                }
-                const result = await response.json();
-                if (!result || !Array.isArray(result.highScores)) {
-                    throw new Error('The high score response is invalid');
-                }
-                topScores = result.highScores;
-            } catch (error) {
-                console.error('Unable to load high scores:', error);
-                topScoresLoadError = true;
-            } finally {
-                topScoresLoading = false;
-                if (state.menus.active === MENU_MAIN) renderMenus();
-            }
-        }
 
 
 
@@ -1663,25 +1631,26 @@
             switch (state.menus.active) {
                 case MENU_MAIN:
                     showMenu(menuMainNode);
+                    // Render top 3 scores
                     if (topScoresContainerNode) {
-                        topScoresContainerNode.replaceChildren();
-                        if (topScoresLoading) {
-                            topScoresContainerNode.textContent = 'Loading top scores...';
-                        } else if (topScoresLoadError) {
-                            topScoresContainerNode.textContent = 'Top scores are currently unavailable.';
-                        } else if (topScores.length > 0) {
-                            const heading = document.createElement('div');
-                            heading.style.marginTop = '1em';
-                            heading.style.fontSize = '1.1em';
-                            heading.textContent = 'Top Scores:';
-                            topScoresContainerNode.appendChild(heading);
-                            topScores.forEach((entry, i) => {
-                                const scoreRow = document.createElement('div');
-                                scoreRow.style.fontSize = '1em';
-                                scoreRow.textContent = `${i + 1}. ${entry.name || 'Anonymous'} - ${formatNumber(entry.score)}`;
-                                topScoresContainerNode.appendChild(scoreRow);
-                            });
-                        }
+                        getTopScores().then(topScores => {
+                            topScoresContainerNode.replaceChildren();
+                            if (topScores.length) {
+                                const heading = document.createElement('div');
+                                heading.textContent = 'Top Scores:';
+                                heading.style.cssText = 'margin-top:1em;font-size:1.1em;';
+                                topScoresContainerNode.appendChild(heading);
+                                topScores.forEach((entry, index) => {
+                                    const scoreRow = document.createElement('div');
+                                    scoreRow.textContent = `${index + 1}. ${entry.name || 'Anonymous'} - ${formatNumber(entry.score)}`;
+                                    scoreRow.style.fontSize = '1em';
+                                    topScoresContainerNode.appendChild(scoreRow);
+                                });
+                            }
+                        }).catch(error => {
+                            console.error('Unable to load top scores:', error);
+                            topScoresContainerNode.textContent = 'High scores are currently unavailable.';
+                        });
                     }
                     break;
                 case MENU_PAUSE:
@@ -1697,12 +1666,16 @@
                             playerNameInputNode.value = '';
                             playerNameInputNode.focus();
                             pendingHighScore = state.game.score;
-                            scoreSubmitStatusNode.textContent = '';
                             playerNameInputNode.disabled = false;
                             submitNameBtnNode.disabled = false;
                         }
                     } else {
-                        highScoreLblNode.textContent = `High Score: ${formatNumber(getHighScore())}`;
+                        getHighScore().then(score => {
+                            highScoreLblNode.textContent = `High Score: ${formatNumber(score)}`;
+                        }).catch(error => {
+                            console.error('Unable to load high score:', error);
+                            highScoreLblNode.textContent = 'High score is currently unavailable.';
+                        });
                         if (nameInputContainerNode) {
                             nameInputContainerNode.style.display = 'none';
                             pendingHighScore = null;
@@ -1720,25 +1693,23 @@
         }
 
         renderMenus();
-        loadTopScores();
 
 
 
         ////////////////////
         // Button Actions //
         ////////////////////
-
-        // Main Menu
+        // // Main Menu
         handleClick($('.play-normal-btn'), () => {
             setGameMode(GAME_MODE_RANKED);
             setActiveMenu(null);
             resetGame();
-            const bg = document.getElementById('bg-wav');
+            const bg = document.getElementById('bg-audio');
             if (bg) {
-                bg.volume = 0.8;
+                bg.volume = 0.6;
                 bg.currentTime = 0;
                 bg.loop = true;
-                bg.play().catch(()=>{});
+                bg.play().catch(() => { });
             }
         });
 
@@ -1746,12 +1717,12 @@
             setGameMode(GAME_MODE_CASUAL);
             setActiveMenu(null);
             resetGame();
-            const bg = document.getElementById('bg-wav');
+            const bg = document.getElementById('bg-audio');
             if (bg) {
-                bg.volume = 0.8;
+                bg.volume = 0.6;
                 bg.currentTime = 0;
                 bg.loop = true;
-                bg.play().catch(()=>{});
+                bg.play().catch(() => { });
             }
         });
 
@@ -1803,7 +1774,7 @@
 
 
 
-        // actions.js/////
+        // actions.js
         // ============================================================================
         // ============================================================================
 
@@ -1851,7 +1822,7 @@
 
         //////////////////
         // GAME ACTIONS //
-        //////////////////
+        //////////////////////////
 
         function setGameMode(mode) {
             state.game.mode = mode;
@@ -1864,44 +1835,30 @@
             setScore(0);
             setCubeCount(0);
             spawnTime = getSpawnDelay();
+            getHighScore().then(score => { _lastHighscore = score; }).catch(error => {
+                console.error('Unable to refresh high score:', error);
+            });
         }
 
         function pauseGame() {
             isInGame() && setActiveMenu(MENU_PAUSE);
-            if (isInGame()) {
-                if (bgAudio && !bgAudio.paused) {
-                    bgWasPlaying = true;
-                    bgAudio.pause();
-            } else {
-                bgWasPlaying = false;
-            }
-            setActiveMenu(MENU_PAUSE);
         }
-    }
 
         function resumeGame() {
             isPaused() && setActiveMenu(null);
-            if (isPaused()) {
-                setActiveMenu(null);
-                if (bgAudio && bgWasPlaying) {
-                    bgAudio.play().catch(()=>{});
-                }
-                bgWasPlaying = false;
-            }
         }
 
         function endGame() {
+            console.log('endGame() called; score=', state.game.score, 'mode=', state.game.mode, '_lastHighscore=', _lastHighscore);
             handleCanvasPointerUp();
-            // Only prompt for name and update high scores in PLAY GAME mode
             if (isNewHighScore() && state.game.mode === GAME_MODE_RANKED) {
-                // Name input will be shown in renderMenus
+                console.log('new high score (will prompt for name)');
             } else if (isNewHighScore()) {
+                console.log('new high score (casual) — saving:', state.game.score);
                 setHighScore(state.game.score);
             }
-            const bg = document.getElementById('bg-wav');
-            if (bg) {
-                bg.pause();
-            }
+            const bg = document.getElementById('bg-audio');
+            if (bg) bg.pause();
             setActiveMenu(MENU_SCORE);
         }
 
@@ -1939,17 +1896,13 @@
         const spawnExtraDelay = 300;
         let targetSpeed = 1;
 
-        const sliceAudio= document.getElementById('slice-audio');
+        const sliceAudio = document.getElementById('slice-audio');
         const crashingAudio = document.getElementById('crashing-audio');
         const mmmAudio = document.getElementById('mmm-audio');
-
-        const bgAudio = document.getElementById('bg-wav');
-        let bgWasPlaying = false;
 
         function tick(width, height, simTime, simSpeed, lag) {
             PERF_START('frame');
             PERF_START('tick');
-            
 
             state.game.time += simTime;
 
@@ -1982,7 +1935,7 @@
             // There is also a "scaled" variant taking game speed into account. This serves two purposes:
             //  - Lag won't create large spikes in speed/deltas
             //  - In slow mo, speed is increased proportionately to match "reality". Without this boost,
-            //    it feels like your actions are dampened in slow mo.
+            //    it feels like your actions are dampened in slow mo ny me///
             const forceMultiplier = 1 / (simSpeed * 0.75 + 0.25);
             pointerDelta.x = 0;
             pointerDelta.y = 0;
@@ -2448,8 +2401,8 @@
 
 
         // canvas.js
-        // ========================================================================
-        // ========================================================================
+        // ============================================================================
+        // ============================================================================
 
         function setupCanvases() {
             const ctx = canvas.getContext('2d');
@@ -2533,8 +2486,8 @@
 
 
         // interaction.js
-        // ==========================================================================
-        // ==========================================================================
+        // ============================================================================
+        // ============================================================================
 
         // Interaction
         // -----------------------------
@@ -2626,28 +2579,28 @@
 
 
         // index.js
-        // ==========================================================================
-        // ==========================================================================
+        // ============================================================================
+        // ============================================================================
 
         setupCanvases();
 
         function unlockAudio() {
             if (sliceAudio) {
                 sliceAudio.volume = 1;
-                sliceAudio.play().then(() => sliceAudio.pause()).catch(() => {});
+                sliceAudio.play().then(() => sliceAudio.pause()).catch(() => { });
             }
             if (crashingAudio) {
                 crashingAudio.volume = 1;
-                crashingAudio.play().then(() => crashingAudio.pause()).catch(() => {});
+                crashingAudio.play().then(() => crashingAudio.pause()).catch(() => { });
             }
             if (mmmAudio) {
                 mmmAudio.volume = 1;
-                mmmAudio.play().then(() => mmmAudio.pause()).catch(() => {});
+                mmmAudio.play().then(() => mmmAudio.pause()).catch(() => { });
             }
-            const bg = document.getElementById('bg-wav');
+            const bg = document.getElementById('bg-audio');
             if (bg) {
-                bg.volume = 0.8;
-                bg.play().then(() => bg.pause()).catch(()=>{})
+                bg.volume = 0.9;
+                bg.play().then(() => bg.pause()).catch(() => { });
             }
             document.body.removeEventListener('click', unlockAudio);
         }
@@ -2655,34 +2608,21 @@
         // Handle name submission for high score (PLAY GAME mode only)
         if (submitNameBtnNode) {
             submitNameBtnNode.addEventListener('click', async () => {
-                const name = playerNameInputNode.value.trim();
-                if (pendingHighScore === null || !name || submitNameBtnNode.disabled) return;
-
-                submitNameBtnNode.disabled = true;
-                scoreSubmitStatusNode.textContent = 'Saving score...';
-                try {
-                    const response = await fetch('/api/highscores', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ name, score: pendingHighScore })
-                    });
-                    if (!response.ok) {
-                        const result = await response.json().catch(() => null);
-                        throw new Error(result?.error || `Score submission failed (${response.status})`);
+                if (pendingHighScore && playerNameInputNode.value.trim() && !submitNameBtnNode.disabled) {
+                    submitNameBtnNode.disabled = true;
+                    try {
+                        await setTopScores({ name: playerNameInputNode.value.trim(), score: pendingHighScore });
+                        setHighScore(pendingHighScore);
+                        nameInputContainerNode.style.display = 'none';
+                        pendingHighScore = null;
+                        setActiveMenu(MENU_MAIN);
+                    } catch (error) {
+                        console.error('Unable to save high score:', error);
+                        highScoreLblNode.textContent = 'Unable to save high score. Please try again.';
+                    } finally {
+                        playerNameInputNode.disabled = false;
+                        submitNameBtnNode.disabled = false;
                     }
-
-                    setHighScore(pendingHighScore);
-                    playerNameInputNode.disabled = true;
-                    nameInputContainerNode.style.display = 'none';
-                    pendingHighScore = null;
-                    playerNameInputNode.disabled = false;
-                    submitNameBtnNode.disabled = false;
-                    setActiveMenu(MENU_MAIN);
-                    loadTopScores();
-                } catch (error) {
-                    console.error('Unable to save high score:', error);
-                    scoreSubmitStatusNode.textContent = 'Unable to save your score. Please try again.';
-                    submitNameBtnNode.disabled = false;
                 }
             });
             playerNameInputNode.addEventListener('keydown', (e) => {
@@ -2690,6 +2630,39 @@
                     submitNameBtnNode.click();
                 }
             });
+        }
+
+        async function getTopScores() {
+            const response = await fetch('/api/highscores');
+            if (!response.ok) {
+                throw new Error(`High score request failed (${response.status})`);
+            }
+            const result = await response.json();
+            return result.highScores;
+        }
+        async function setTopScores(entry) {
+            const response = await fetch('/api/highscores', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(entry)
+            });
+            if (!response.ok) {
+                throw new Error(`High score submission failed (${response.status})`);
+            }
+        }
+        async function getHighScore() {
+            const scores = await getTopScores();
+            return scores.length > 0 ? scores[0].score : 0;
+        }
+        let _lastHighscore = 0;
+        getHighScore().then(score => { _lastHighscore = score; }).catch(error => {
+            console.error('Unable to initialize high score:', error);
+        });
+        function setHighScore(score) {
+            _lastHighscore = score;
+        }
+        function isNewHighScore() {
+            return state.game.score > _lastHighscore;
         }
 
     </script>
